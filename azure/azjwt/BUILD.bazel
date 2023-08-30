@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "azjwt",
+    srcs = ["azjwt.go"],
+    importpath = "github.com/RMI/credential-service/azure/azjwt",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//allowlist",
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@com_github_lestrrat_go_jwx_v2//jwk",
+        "@com_github_lestrrat_go_jwx_v2//jwt",
+        "@org_uber_go_zap//:zap",
+    ],
+)

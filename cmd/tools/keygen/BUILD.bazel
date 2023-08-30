@@ -1,0 +1,15 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "keygen_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/RMI/credential-service/cmd/tools/keygen",
+    visibility = ["//visibility:private"],
+    deps = ["//keyutil"],
+)
+
+go_binary(
+    name = "keygen",
+    embed = [":keygen_lib"],
+    visibility = ["//visibility:public"],
+)

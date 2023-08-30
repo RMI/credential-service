@@ -1,0 +1,6 @@
+{
+  "clientId": "00000000-1111-2222-3333-444444444444",
+  "authority": "https://{tenant}.b2clogin.com/{tenant}.onmicrosoft.com/{policy}",
+  "knownAuthorities": ["{tenant}.b2clogin.com"],
+  "redirectUri": "http://localhost:3000"
+}

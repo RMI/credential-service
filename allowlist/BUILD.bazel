@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "allowlist",
+    srcs = ["allowlist.go"],
+    importpath = "github.com/RMI/credential-service/allowlist",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "allowlist_test",
+    srcs = ["allowlist_test.go"],
+    embed = [":allowlist"],
+)

@@ -1,0 +1,21 @@
+name: Backend CI
+
+on: push
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Bazel
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', '.bazelrc', 'WORKSPACE') }}
+          restore-keys: |
+            ${{ runner.os }}-bazel-
+
+      - uses: actions/checkout@v3
+
+      - name: Run all tests
+        run: bazelisk query 'tests(//... except kind(oci_*, //...))' | xargs bazelisk test

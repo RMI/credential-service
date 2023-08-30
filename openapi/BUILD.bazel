@@ -1,0 +1,15 @@
+load("@com_siliconally_rules_oapi_codegen//oapi_codegen:def.bzl", "oapi_codegen_go")
+
+oapi_codegen_go(
+    name = "user",
+    importpath = "github.com/RMI/credential-service/openapi/user",
+    spec = "user.yaml",
+    visibility = ["//visibility:public"],
+)
+
+oapi_codegen_go(
+    name = "testcreds",
+    importpath = "github.com/RMI/credential-service/openapi/testcreds",
+    spec = "testcreds.yaml",
+    visibility = ["//visibility:public"],
+)

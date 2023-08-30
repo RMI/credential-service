@@ -1,0 +1,67 @@
+openapi: "3.0.0"
+info:
+  version: 0.0.1
+  title: Credential Test API
+  description: >
+    The Credential Test API provides a simple API to validate credentials.
+  termsOfService: TODO
+  contact:
+    name: Silicon Ally
+    email: contact@siliconally.org
+    url: https://siliconaly.org
+  license:
+    name: MIT
+    url: https://mit-license.org/
+servers:
+  - url: TODO
+paths:
+  "/credentials:check":
+    post:
+      summary: Confirm that a given JWT can be used with RMI srevices.
+      description: |
+        Takes in a RMI JWT token and confirms that it meets all the requirements
+        of a valid token (e.g. valid signature, not expired, etc).
+
+        Note that even when this endpoint fails, it returns a 200 response. The
+        response body will contain the reason for the failure.
+      operationId: checkCredentials
+      responses:
+        '200':
+          description: API key response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialCheck'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    CredentialCheck:
+      type: object
+      required:
+        - valid
+      properties:
+        valid:
+          type: boolean
+          description: Whether or not the token was valid
+        failureReason:
+          type: string
+          description: Description of why the token was invalid, only populated if valid is false.
+        tokenID:
+          type: string
+          description: Unique identifier for the token, only populated if valid is true.
+        userID:
+          type: string
+          description: Identifier for the user, only populated if valid is true.
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error message

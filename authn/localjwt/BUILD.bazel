@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "localjwt",
+    srcs = ["localjwt.go"],
+    importpath = "github.com/RMI/credential-service/authn/localjwt",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@com_github_lestrrat_go_jwx_v2//jwt",
+        "@org_uber_go_zap//:zap",
+    ],
+)

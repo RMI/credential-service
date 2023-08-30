@@ -1,0 +1,14 @@
+sh_binary(
+    name = "run_server",
+    srcs = ["run_server.sh"],
+)
+
+sh_binary(
+    name = "run_keygen",
+    srcs = ["run_keygen.sh"],
+)
+
+sh_binary(
+    name = "run_genjwt",
+    srcs = ["run_genjwt.sh"],
+)

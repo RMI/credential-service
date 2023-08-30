@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "dev": "esbuild src/main.ts --bundle --minify --outdir=dist --platform=browser --watch --serve=:3000 --servedir=. --sourcemap --global-name=App",
+    "generate:openapi:user": "openapi --input ../openapi/user.yaml --output ./openapi/generated/user/ --name UserClient --useOptions true",
+    "generate:openapi:testcreds": "openapi --input ../openapi/testcreds.yaml --output ./openapi/generated/testcreds/ --name TestCredsClient --useOptions true",
+    "generate:openapi": "npm run generate:openapi:user && npm run generate:openapi:testcreds",
+    "format": "prettier . --write",
+    "lint": "prettier . --check && eslint .",
+    "lint:fix": "prettier . --check && eslint . --fix"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "3.0.0-beta.1"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.4.0",
+    "@typescript-eslint/parser": "^6.4.0",
+    "esbuild": "0.19.2",
+    "eslint": "^8.47.0",
+    "eslint-config-prettier": "^9.0.0",
+    "openapi-typescript-codegen": "^0.25.0",
+    "prettier": "3.0.2"
+  }
+}

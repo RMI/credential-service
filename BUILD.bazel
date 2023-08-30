@@ -1,0 +1,16 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:resolve go github.com/RMI/credential-service/openapi/user //openapi:user_generated
+# gazelle:resolve go github.com/RMI/credential-service/openapi/testcreds //openapi:testcreds_generated
+# gazelle:prefix github.com/RMI/credential-service
+gazelle(name = "gazelle")
+
+gazelle(
+    name = "gazelle-update-repos",
+    args = [
+        "-from_file=go.mod",
+        "-to_macro=deps.bzl%go_dependencies",
+        "-prune",
+    ],
+    command = "update-repos",
+)

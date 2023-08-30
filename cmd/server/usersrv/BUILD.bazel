@@ -1,0 +1,33 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "usersrv",
+    srcs = ["usersrv.go"],
+    importpath = "github.com/RMI/credential-service/cmd/server/usersrv",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//openapi:user_generated",
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_lestrrat_go_jwx_v2//jwa",
+        "@com_github_lestrrat_go_jwx_v2//jwk",
+        "@com_github_lestrrat_go_jwx_v2//jwt",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_test(
+    name = "usersrv_test",
+    srcs = ["usrsrv_test.go"],
+    embed = [":usersrv"],
+    deps = [
+        "//keyutil",
+        "//openapi:user_generated",
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_lestrrat_go_jwx_v2//jwk",
+        "@com_github_lestrrat_go_jwx_v2//jwt",
+        "@org_uber_go_zap//zaptest",
+    ],
+)

@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "testcredsrv",
+    srcs = ["testcredsrv.go"],
+    importpath = "github.com/RMI/credential-service/cmd/server/testcredsrv",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//httpreq",
+        "//openapi:testcreds_generated",
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@com_github_lestrrat_go_jwx_v2//jwt",
+    ],
+)
