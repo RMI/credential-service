@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/RMI/credential-service/allowlist"
+	"github.com/RMI/credential-service/emailctx"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -149,21 +150,11 @@ func (a *Auth) Authenticator(next http.Handler) http.Handler {
 		}
 
 		// Add the email to the context so that it can be used by the handler
-		ctx := context.WithValue(r.Context(), emailContextKey{}, allowedEmails[0])
+		ctx := emailctx.AddEmailsToContext(r.Context(), allowedEmails)
 		// Token is authenticated, pass it through
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 	return http.HandlerFunc(hfn)
-}
-
-type emailContextKey struct{}
-
-func EmailFromContext(ctx context.Context) (string, error) {
-	email, ok := ctx.Value(emailContextKey{}).(string)
-	if !ok {
-		return "", fmt.Errorf("no email found in context")
-	}
-	return email, nil
 }
 
 func (a *Auth) parseAndVerify(ctx context.Context, r *http.Request) (jwt.Token, error) {

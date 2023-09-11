@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RMI/credential-service/emailctx"
 	"github.com/RMI/credential-service/keyutil"
 	"github.com/RMI/credential-service/openapi/user"
 	"github.com/go-chi/jwtauth/v5"
@@ -32,8 +33,10 @@ func TestLogin(t *testing.T) {
 	tkn := jwt.New()
 	tkn.Set("sub", "user123")
 	tkn.Set("exp", env.curTime.Add(24*time.Hour))
-	tkn.Set("emails", []any{"test@allowed.example.com"})
+	emails := []string{"test@allowed.example.com"}
+	tkn.Set("emails", emails)
 	ctx = jwtauth.NewContext(ctx, tkn, nil)
+	ctx = emailctx.AddEmailsToContext(ctx, emails)
 
 	got, err := srv.Login(ctx, user.LoginRequestObject{})
 	if err != nil {
@@ -42,7 +45,7 @@ func TestLogin(t *testing.T) {
 
 	want := user.Login200Response{
 		Headers: user.Login200ResponseHeaders{
-			SetCookie: "jwt=eyJhbGciOiJFZERTQSIsImtpZCI6InRlc3Qta2V5LWlkIiwidHlwIjoiSldUIn0.eyJhdWQiOlsicm1pLm9yZyJdLCJleHAiOjEyMzU0MzE4OCwiaWF0IjoxMjM0NTY3ODksImp0aSI6IjAxOTRmZGMyLWZhMmYtNGNjMC04MWQzLWZmMTIwNDViNzNjOCIsIm5iZiI6MTIzNDU2NzI5LCJzdWIiOiJ1c2VyMTIzIn0.Dgkcq7gpDuf870XqSB0x1jkn4yPTgCapiF6StDCY_SGtrbd_jGdPsRCT6tVSsX1OfnwHs0vP6Ko5e_-H2hq-DA; Path=/; Expires=Fri, 30 Nov 1973 21:33:08 GMT; HttpOnly; Secure; SameSite=Lax",
+			SetCookie: "jwt=eyJhbGciOiJFZERTQSIsImtpZCI6InRlc3Qta2V5LWlkIiwidHlwIjoiSldUIn0.eyJhdWQiOlsicm1pLm9yZyJdLCJlbWFpbHMiOlsidGVzdEBhbGxvd2VkLmV4YW1wbGUuY29tIl0sImV4cCI6MTIzNTQzMTg4LCJpYXQiOjEyMzQ1Njc4OSwianRpIjoiMDE5NGZkYzItZmEyZi00Y2MwLTgxZDMtZmYxMjA0NWI3M2M4IiwibmJmIjoxMjM0NTY3MjksInN1YiI6InVzZXIxMjMifQ.aJFKyWQ2035ziql5GxjtN6kn4bqc2w-q4_C_EH4cKAkFuybh3zDGf8TS-kC_w0NUL-y3U5xgJ_xdEJWqLEz0Ag; Path=/; Expires=Fri, 30 Nov 1973 21:33:08 GMT; HttpOnly; Secure; SameSite=Lax",
 		},
 	}
 

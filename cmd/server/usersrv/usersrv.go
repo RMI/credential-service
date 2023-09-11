@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/RMI/credential-service/azure/azjwt"
+	"github.com/RMI/credential-service/emailctx"
 	"github.com/RMI/credential-service/openapi/user"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
@@ -26,18 +26,20 @@ type TokenIssuer struct {
 	Now func() time.Time
 }
 
-func (t *TokenIssuer) IssueToken(userID, email string, exp time.Time) (string, string, error) {
+func (t *TokenIssuer) IssueToken(userID string, emails []string, exp time.Time) (string, string, error) {
 	now := t.Now()
 	id := uuid.NewString()
-	tkn, err := jwt.NewBuilder().
+	builder := jwt.NewBuilder().
 		Subject(userID).
 		Audience([]string{"rmi.org"}).
 		Expiration(exp).
 		IssuedAt(now).
 		NotBefore(now.Add(-time.Minute)).
-		JwtID(id).
-		Claim("email", email).
-		Build()
+		JwtID(id)
+	if len(emails) > 0 {
+		builder = builder.Claim("emails", emails)
+	}
+	tkn, err := builder.Build()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to build token: %w", err)
 	}
@@ -57,7 +59,7 @@ type Server struct {
 // Exchange a user JWT token for an API key that can be used with other RMI APIs
 // (POST /login/apikey)
 func (s *Server) CreateAPIKey(ctx context.Context, req user.CreateAPIKeyRequestObject) (user.CreateAPIKeyResponseObject, error) {
-	tkn, id, exp, err := s.exchangeToken(ctx)
+	tkn, id, exp, err := s.exchangeToken(ctx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
@@ -70,15 +72,18 @@ func (s *Server) CreateAPIKey(ctx context.Context, req user.CreateAPIKeyRequestO
 	}, nil
 }
 
-func (s *Server) exchangeToken(ctx context.Context) (string, string, time.Time, error) {
+func (s *Server) exchangeToken(ctx context.Context, includeEmails bool) (string, string, time.Time, error) {
 	_, srcClaims, err := jwtauth.FromContext(ctx)
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("failed to get auth service JWT to exchange for service-issued JWT: %w", err)
 	}
 
-	email, err := azjwt.EmailFromContext(ctx)
-	if err != nil {
-		return "", "", time.Time{}, fmt.Errorf("failed to get email from context: %w", err)
+	var emails []string
+	if includeEmails {
+		emails, err = emailctx.EmailsFromContext(ctx)
+		if err != nil {
+			return "", "", time.Time{}, fmt.Errorf("failed to get email from context: %w", err)
+		}
 	}
 
 	expC, ok := srcClaims["exp"]
@@ -101,7 +106,7 @@ func (s *Server) exchangeToken(ctx context.Context) (string, string, time.Time, 
 		return "", "", time.Time{}, fmt.Errorf("'sub' claim in source JWT was of type %T, expected a string", sub)
 	}
 
-	tkn, id, err := s.Issuer.IssueToken(subStr, email, exp)
+	tkn, id, err := s.Issuer.IssueToken(subStr, emails, exp)
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -112,7 +117,7 @@ func (s *Server) exchangeToken(ctx context.Context) (string, string, time.Time, 
 // Exchange a user JWT token for an auth cookie that can be used with other RMI APIs
 // (POST /login/cookie)
 func (s *Server) Login(ctx context.Context, req user.LoginRequestObject) (user.LoginResponseObject, error) {
-	tkn, id, exp, err := s.exchangeToken(ctx)
+	tkn, id, exp, err := s.exchangeToken(ctx, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange token: %w", err)
 	}
