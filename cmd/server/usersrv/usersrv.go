@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/RMI/credential-service/azure/azjwt"
 	"github.com/RMI/credential-service/openapi/user"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
@@ -25,7 +26,7 @@ type TokenIssuer struct {
 	Now func() time.Time
 }
 
-func (t *TokenIssuer) IssueToken(userID string, exp time.Time) (string, string, error) {
+func (t *TokenIssuer) IssueToken(userID, email string, exp time.Time) (string, string, error) {
 	now := t.Now()
 	id := uuid.NewString()
 	tkn, err := jwt.NewBuilder().
@@ -35,6 +36,7 @@ func (t *TokenIssuer) IssueToken(userID string, exp time.Time) (string, string, 
 		IssuedAt(now).
 		NotBefore(now.Add(-time.Minute)).
 		JwtID(id).
+		Claim("email", email).
 		Build()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to build token: %w", err)
@@ -74,6 +76,11 @@ func (s *Server) exchangeToken(ctx context.Context) (string, string, time.Time, 
 		return "", "", time.Time{}, fmt.Errorf("failed to get auth service JWT to exchange for service-issued JWT: %w", err)
 	}
 
+	email, err := azjwt.EmailFromContext(ctx)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("failed to get email from context: %w", err)
+	}
+
 	expC, ok := srcClaims["exp"]
 	if !ok {
 		return "", "", time.Time{}, errors.New("no 'exp' claim in source JWT")
@@ -94,7 +101,7 @@ func (s *Server) exchangeToken(ctx context.Context) (string, string, time.Time, 
 		return "", "", time.Time{}, fmt.Errorf("'sub' claim in source JWT was of type %T, expected a string", sub)
 	}
 
-	tkn, id, err := s.Issuer.IssueToken(subStr, exp)
+	tkn, id, err := s.Issuer.IssueToken(subStr, email, exp)
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
 	}
