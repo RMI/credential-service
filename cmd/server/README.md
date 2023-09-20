@@ -8,22 +8,44 @@ The Credential Server serves the User Service, which is defined in an [OpenAPI 3
 
 Make sure you have [Bazel](https://bazel.build/) installed. For more detailed instructions on some of the tools we use and how we use them, check out the [Silicon Ally Developer Handbook](https://siliconally.getoutline.com/s/d984f195-3e5e-410f-bce8-63676496661f).
 
-Once that's done, run the following to generate the key pair used for JWT signing + validation. It'll create `test_server.{pub,key}` files in the root of the project.
+Once that's done, you'll either need access to the sops-encrypted `cmd/server/configs/secrets/local.enc.json` file or otherwise replace it with your own, which should contain the contents:
+
+```json
+{
+	"auth_private_key": {
+		"id": "some-id",
+		"data": "-----BEGIN PRIVATE KEY-----\n[ ... the private key ...]\n-----END PRIVATE KEY-----"
+	},
+	"azure_ad": {
+		"tenant_name": "...",
+		"user_flow": "B2C_1_...",
+		"client_id": "11111111-2222-3333-4444-555555555555",
+		"tenant_id": "00000000-9999-8888-7777-666666666666"
+	}
+}
+```
+
+The `azure_ad` section is only required if `use_local_jwts` is false. The `auth_private_key.data` field is the Ed25519 private key used for JWT signing (and the public key is used for validation in the `testcreds` endpoint). To generate a key you can run:
 
 ```bash
 bazel run //scripts:run_keygen
 ```
 
+Which will create `test_server.{pub,key}` files in the root of the project. From there, it can be copied into the sops file by running `sops cmd/server/configs/secrets/local.enc.json`.
+
 If you don't do this, you'll get an error like:
 
 ```
-failed to load signing private key: failed to PEM decode private key file: failed to read PEM-encoded file: open test_server.key: no such file or directory
+failed to decrypt secrets: failed to decrypt file: Failed to read "cmd/server/configs/secrets/local.enc.json": open cmd/server/configs/secrets/local.enc.json: no such file or directory
+```
+
+or
+
+```
+failed to decrypt secrets: failed to decrypt file: Error getting data key: 0 successful groups required, got 0
 ```
 
 when you try to run the server.
-
-Now, create a `local.conf` file in [`/cmd/server/configs/`](/cmd/server/configs/) based on [the `local.conf.sample` configuration](/cmd/server/configs/local.conf.sample). If you plan on testing against a live Azure AD tenant (e.g. using the test web frontend), fill in the Azure parameters.
-
 
 ### Running the Credential Server
 
