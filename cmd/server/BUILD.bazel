@@ -18,6 +18,7 @@ go_library(
         "//openapi:testcreds_generated",
         "//openapi:user_generated",
         "//secrets",
+        "@com_github_azure_azure_sdk_for_go_sdk_azidentity//:azidentity",
         "@com_github_deepmap_oapi_codegen//pkg/chi-middleware",
         "@com_github_getkin_kin_openapi//openapi3filter",
         "@com_github_go_chi_chi_v5//:chi",
