@@ -17,9 +17,9 @@ import (
 	"github.com/RMI/credential-service/cmd/server/usersrv"
 	"github.com/RMI/credential-service/flagext"
 	"github.com/RMI/credential-service/httpreq"
-	"github.com/RMI/credential-service/keyutil"
 	"github.com/RMI/credential-service/openapi/testcreds"
 	"github.com/RMI/credential-service/openapi/user"
+	"github.com/RMI/credential-service/secrets"
 	"github.com/Silicon-Ally/zaphttplog"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/go-chi/chi/v5"
@@ -71,17 +71,9 @@ func run(args []string) error {
 		rateLimitMaxRequests = fs.Int("rate_limit_max_requests", 100, "The maximum number of requests to allow per rate_limit_unit_time before rate limiting the caller.")
 		rateLimitUnitTime    = fs.Duration("rate_limit_unit_time", 1*time.Minute, "The unit of time over which to measure the rate_limit_max_requests.")
 
-		// Azure AD B2C
-		azADTenantName = fs.String("azure_ad_tenant_name", "", "The name of the Azure AD tenant to sign users in against")
-		azADUserFlow   = fs.String("azure_ad_user_flow", "", "The name of the user flow to log users in with")
-		azADClientID   = fs.String("azure_ad_client_id", "", "The ID of the application/client users are signing in with")
-		azADTenantID   = fs.String("azure_ad_tenant_id", "", "The ID of the tenant/directory to enroll users with")
-
 		useLocalJWTs = fs.Bool("use_local_jwts", false, "If true, expect source JWTs to be self-signed, instead of from Azure B2C")
 
-		// Private key for signing API keys that this service issues
-		authPrivKeyFile = fs.String("auth_private_key_file", "", "The PEM-encoded PKCS #8 ASN.1 DER-formatted ED25519 private key")
-		authPrivKeyID   = fs.String("auth_private_key_id", "", "A unique identifier for the private key.")
+		sopsPath = fs.String("sops_path", "", "Path to the sops-formatted file containing sensitive credentials to be decrypted at runtime.")
 
 		allowedDomains     flagext.StringList
 		allowedCORSOrigins flagext.StringList
@@ -104,12 +96,8 @@ func run(args []string) error {
 			val:  env,
 		},
 		{
-			name: "auth_private_key_file",
-			val:  authPrivKeyFile,
-		},
-		{
-			name: "auth_private_key_id",
-			val:  authPrivKeyID,
+			name: "sops_path",
+			val:  sopsPath,
 		},
 	}
 	if err := checkFlags(reqFlags); err != nil {
@@ -120,33 +108,14 @@ func run(args []string) error {
 		return fmt.Errorf("can only use local JWTs in a local environment, env was %q", *env)
 	}
 
-	if !*useLocalJWTs {
-		reqAZFlags := []requiredFlag{
-			{
-				name: "azure_ad_tenant_name",
-				val:  azADTenantName,
-			},
-			{
-				name: "azure_ad_user_flow",
-				val:  azADUserFlow,
-			},
-			{
-				name: "azure_ad_client_id",
-				val:  azADClientID,
-			},
-			{
-				name: "azure_ad_tenant_id",
-				val:  azADTenantID,
-			},
-		}
-		if err := checkFlags(reqAZFlags); err != nil {
-			return err
-		}
-	}
-
-	priv, err := keyutil.DecodeED25519PrivateKeyFromFile(*authPrivKeyFile)
+	sec, err := secrets.Load(*sopsPath)
 	if err != nil {
-		return fmt.Errorf("failed to load signing private key: %w", err)
+		return fmt.Errorf("failed to decrypt secrets: %w", err)
+	}
+	priv := sec.AuthSigningKey.PrivateKey
+
+	if !*useLocalJWTs && sec.AzureAD == nil {
+		return errors.New("no Azure AD config was provided, but not running in local JWT mode")
 	}
 
 	userSwagger, err := user.GetSwagger()
@@ -179,7 +148,7 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to make JWK key: %w", err)
 	}
-	jwKey.Set(jwk.KeyIDKey, *authPrivKeyID)
+	jwKey.Set(jwk.KeyIDKey, sec.AuthSigningKey.ID)
 
 	userSrv := &usersrv.Server{
 		Issuer: &usersrv.TokenIssuer{
@@ -230,19 +199,19 @@ func run(args []string) error {
 		authenticator, verifier = localAuth.Authenticator, localAuth.Verifier
 	} else {
 		logger.Info("Using Azure AD for source auth",
-			zap.String("tenant_id", *azADTenantID),
-			zap.String("tenant_name", *azADTenantName),
-			zap.String("user_flow", *azADUserFlow),
-			zap.String("client_id", *azADClientID),
+			zap.String("tenant_id", sec.AzureAD.TenantID),
+			zap.String("tenant_name", sec.AzureAD.TenantName),
+			zap.String("user_flow", sec.AzureAD.UserFlow),
+			zap.String("client_id", sec.AzureAD.ClientID),
 		)
 		// Accept Microsoft-issued JWTs
 		azJWTAuth, err := azjwt.NewAuth(ctx, &azjwt.Config{
 			Logger:    logger,
 			Allowlist: allowlist.NewChecker(allowedDomains),
-			Tenant:    *azADTenantName,
-			TenantID:  *azADTenantID,
-			Policy:    *azADUserFlow,
-			ClientID:  *azADClientID,
+			Tenant:    sec.AzureAD.TenantName,
+			TenantID:  sec.AzureAD.TenantID,
+			Policy:    sec.AzureAD.UserFlow,
+			ClientID:  sec.AzureAD.ClientID,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to init Azure JWT client: %w", err)
