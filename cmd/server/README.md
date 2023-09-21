@@ -8,7 +8,9 @@ The Credential Server serves the User Service, which is defined in an [OpenAPI 3
 
 Make sure you have [Bazel](https://bazel.build/) installed. For more detailed instructions on some of the tools we use and how we use them, check out the [Silicon Ally Developer Handbook](https://siliconally.getoutline.com/s/d984f195-3e5e-410f-bce8-63676496661f).
 
-Once that's done, you'll either need access to the sops-encrypted `cmd/server/configs/secrets/local.enc.json` file or otherwise replace it with your own, which should contain the contents:
+Once that's done, you'll either need access to the sops-encrypted `cmd/server/configs/secrets/local.enc.json` file or otherwise replace it with your own. If you have access and are logged in with Azure, you can view this file with `sops cmd/server/configs/secrets/local.enc.json`. Check the [Developer Handbook](https://siliconally.getoutline.com/s/d984f195-3e5e-410f-bce8-63676496661f#h-sops) for more details.
+
+If you don't have access and you're creating your own, it should contain the contents:
 
 ```json
 {
