@@ -75,6 +75,8 @@ func run(args []string) error {
 
 		sopsPath = fs.String("sops_path", "", "Path to the sops-formatted file containing sensitive credentials to be decrypted at runtime.")
 
+		enableCredTest = fs.Bool("enable_credential_test_api", false, "If true, enables the credential testing API, which returns if credentials are valid")
+
 		allowedDomains     flagext.StringList
 		allowedCORSOrigins flagext.StringList
 		minLogLevel        zapcore.Level = zapcore.WarnLevel
@@ -118,16 +120,6 @@ func run(args []string) error {
 		return errors.New("no Azure AD config was provided, but not running in local JWT mode")
 	}
 
-	userSwagger, err := user.GetSwagger()
-	if err != nil {
-		return fmt.Errorf("failed to load User swagger spec: %w", err)
-	}
-
-	testCredsSwagger, err := testcreds.GetSwagger()
-	if err != nil {
-		return fmt.Errorf("failed to load testcreds swagger spec: %w", err)
-	}
-
 	var logger *zap.Logger
 	if *env == "local" {
 		if logger, err = zap.NewDevelopment(); err != nil {
@@ -137,6 +129,16 @@ func run(args []string) error {
 		if logger, err = zap.NewProduction(zap.AddStacktrace(zapcore.ErrorLevel)); err != nil {
 			return fmt.Errorf("failed to init logger: %w", err)
 		}
+	}
+
+	userSwagger, err := user.GetSwagger()
+	if err != nil {
+		return fmt.Errorf("failed to load User swagger spec: %w", err)
+	}
+
+	testCredsSwagger, err := testcreds.GetSwagger()
+	if err != nil {
+		return fmt.Errorf("failed to load testcreds swagger spec: %w", err)
 	}
 
 	// Clear out the servers array in the swagger spec, that skips validating
@@ -240,23 +242,25 @@ func run(args []string) error {
 		ErrorHandlerFunc: errorHandlerFuncForService(logger, "user"),
 	})
 
-	testcreds.HandlerWithOptions(testCredsStrictHandler, testcreds.ChiServerOptions{
-		BaseRouter: routerWithMiddleware(
-			httpreq.Middleware,
-			// We don't handle auth as middleware in the credential test service, because
-			// we don't want to fail requests with invalid/missing tokens, we want to return
-			// specific errors. So we handle it in /cmd/server/testcredsrv instead.
+	if *enableCredTest {
+		testcreds.HandlerWithOptions(testCredsStrictHandler, testcreds.ChiServerOptions{
+			BaseRouter: routerWithMiddleware(
+				httpreq.Middleware,
+				// We don't handle auth as middleware in the credential test service, because
+				// we don't want to fail requests with invalid/missing tokens, we want to return
+				// specific errors. So we handle it in /cmd/server/testcredsrv instead.
 
-			// jwtauth.Verifier(testJWTAuth),
-			// jwtauth.Authenticator,
+				// jwtauth.Verifier(testJWTAuth),
+				// jwtauth.Authenticator,
 
-			// Use our validation middleware to check all requests against the OpenAPI
-			// schema. We do this after the logging stuff so we have info about
-			// failed/malformed requests.
-			oapimiddleware.OapiRequestValidator(testCredsSwagger),
-		),
-		ErrorHandlerFunc: errorHandlerFuncForService(logger, "testcreds"),
-	})
+				// Use our validation middleware to check all requests against the OpenAPI
+				// schema. We do this after the logging stuff so we have info about
+				// failed/malformed requests.
+				oapimiddleware.OapiRequestValidator(testCredsSwagger),
+			),
+			ErrorHandlerFunc: errorHandlerFuncForService(logger, "testcreds"),
+		})
+	}
 
 	// Created with https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=Pagga&text=SILICON%0AAPI%0ASTARTER
 	fmt.Println()

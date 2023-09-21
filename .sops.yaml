@@ -2,4 +2,6 @@
 creation_rules:
         - path_regex: local\.enc\.json$
           azure_keyvault: https://rmicredsrvlocalsops.vault.azure.net/keys/sops/8c544f0ae62b4d5a9b1c7ef755345f22
+        - path_regex: dev\.enc\.json$
+          azure_keyvault: https://rmicredsrvdevsops.vault.azure.net/keys/sops/2e4989d46cb24ccb96c8ce98e9104fe5
 
