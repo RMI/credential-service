@@ -110,17 +110,10 @@ func run(args []string) error {
 		return fmt.Errorf("can only use local JWTs in a local environment, env was %q", *env)
 	}
 
-	sec, err := secrets.Load(*sopsPath)
-	if err != nil {
-		return fmt.Errorf("failed to decrypt secrets: %w", err)
-	}
-	priv := sec.AuthSigningKey.PrivateKey
-
-	if !*useLocalJWTs && sec.AzureAD == nil {
-		return errors.New("no Azure AD config was provided, but not running in local JWT mode")
-	}
-
-	var logger *zap.Logger
+	var (
+		logger *zap.Logger
+		err    error
+	)
 	if *env == "local" {
 		if logger, err = zap.NewDevelopment(); err != nil {
 			return fmt.Errorf("failed to init logger: %w", err)
@@ -129,6 +122,17 @@ func run(args []string) error {
 		if logger, err = zap.NewProduction(zap.AddStacktrace(zapcore.ErrorLevel)); err != nil {
 			return fmt.Errorf("failed to init logger: %w", err)
 		}
+	}
+
+	logger.Info("Loading sops secrets", zap.String("sops_path", *sopsPath))
+	sec, err := secrets.Load(*sopsPath)
+	if err != nil {
+		return fmt.Errorf("failed to decrypt secrets: %w", err)
+	}
+	priv := sec.AuthSigningKey.PrivateKey
+
+	if !*useLocalJWTs && sec.AzureAD == nil {
+		return errors.New("no Azure AD config was provided, but not running in local JWT mode")
 	}
 
 	userSwagger, err := user.GetSwagger()
