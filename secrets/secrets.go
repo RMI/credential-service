@@ -1,25 +1,14 @@
-// Package secrets implements a wrapper around sops
-// (https://github.com/mozilla/sops) that decrypts encrypted secret files on
-// disk.
+// Package secrets validates and parses all sensitive configuration.
 package secrets
 
 import (
 	"crypto/ed25519"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/RMI/credential-service/keyutil"
-	"github.com/getsops/sops/v3/decrypt"
-)
-
-const (
-	// sopsFileExtension is the suffix we expect all
-	// sops-encrypted configurations to have.
-	sopsFileExtension = ".enc.json"
 )
 
 type Config struct {
@@ -39,35 +28,34 @@ type AzureAD struct {
 	TenantID   string
 }
 
-type config struct {
-	AuthSigningKey *authSigningKey `json:"auth_private_key"`
-	AzureAD        *azureAD        `json:"azure_ad"`
+type RawConfig struct {
+	AuthSigningKey *RawAuthSigningKey
+	AzureAD        *RawAzureAD
 }
 
-type authSigningKey struct {
-	ID   string `json:"id"`
-	Data string `json:"data"`
+type RawAuthSigningKey struct {
+	ID   string
+	Data string
 }
 
-type azureAD struct {
-	TenantName string `json:"tenant_name"`
-	UserFlow   string `json:"user_flow"`
-	ClientID   string `json:"client_id"`
-	TenantID   string `json:"tenant_id"`
+type RawAzureAD struct {
+	TenantName string
+	UserFlow   string
+	ClientID   string
+	TenantID   string
 }
 
-func Load(name string) (*Config, error) {
-	var cfg config
-	if err := loadConfig(name, &cfg); err != nil {
-		return nil, err
+func Load(rawCfg *RawConfig) (*Config, error) {
+	if rawCfg == nil {
+		return nil, errors.New("no raw config provided")
 	}
 
-	authSigningKey, err := parseAuthSigningKey(cfg.AuthSigningKey)
+	authSigningKey, err := parseAuthSigningKey(rawCfg.AuthSigningKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse auth signing key config: %w", err)
 	}
 
-	azureAD, err := parseAzureAD(cfg.AzureAD)
+	azureAD, err := parseAzureAD(rawCfg.AzureAD)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse azure AD config: %w", err)
 	}
@@ -78,7 +66,7 @@ func Load(name string) (*Config, error) {
 	}, nil
 }
 
-func parseAzureAD(az *azureAD) (*AzureAD, error) {
+func parseAzureAD(az *RawAzureAD) (*AzureAD, error) {
 	// Not required when --use_local_jwts is used
 	if az == nil {
 		return nil, nil
@@ -103,7 +91,7 @@ func parseAzureAD(az *azureAD) (*AzureAD, error) {
 	}, nil
 }
 
-func parseAuthSigningKey(ask *authSigningKey) (AuthSigningKey, error) {
+func parseAuthSigningKey(ask *RawAuthSigningKey) (AuthSigningKey, error) {
 	if ask == nil {
 		return AuthSigningKey{}, errors.New("no auth_private_key was provided")
 	}
@@ -126,32 +114,8 @@ func parseAuthSigningKey(ask *authSigningKey) (AuthSigningKey, error) {
 	}, nil
 }
 
-func loadConfig(name string, v interface{}) error {
-	if err := checkFilename(name); err != nil {
-		return err
-	}
-
-	dat, err := decrypt.File(name, "json")
-	if err != nil {
-		return fmt.Errorf("failed to decrypt file: %w", err)
-	}
-
-	if err := json.Unmarshal(dat, v); err != nil {
-		return fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-
-	return nil
-}
-
-func checkFilename(name string) error {
-	fn := filepath.Base(name)
-	if !strings.HasSuffix(fn, sopsFileExtension) {
-		return fmt.Errorf("the given sops config %q does not have the expected extension %q", fn, sopsFileExtension)
-	}
-	return nil
-}
-
 func loadPrivateKey(in string) (ed25519.PrivateKey, error) {
+	in = strings.ReplaceAll(in, `\n`, "\n")
 	privDER, err := decodePEM("PRIVATE KEY", []byte(in))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode PEM-encoded public key: %w", err)
