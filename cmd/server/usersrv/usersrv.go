@@ -51,9 +51,10 @@ func (t *TokenIssuer) IssueToken(userID string, emails []string, exp time.Time) 
 }
 
 type Server struct {
-	Issuer *TokenIssuer
-	Logger *zap.Logger
-	Now    func() time.Time
+	Issuer       *TokenIssuer
+	Logger       *zap.Logger
+	Now          func() time.Time
+	CookieDomain string
 }
 
 // Exchange a user JWT token for an API key that can be used with other RMI APIs
@@ -131,6 +132,7 @@ func (s *Server) Login(ctx context.Context, req user.LoginRequestObject) (user.L
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   s.CookieDomain,
 	}
 
 	return user.Login200Response{
@@ -151,6 +153,7 @@ func (s *Server) Logout(ctx context.Context, req user.LogoutRequestObject) (user
 		Secure:   true,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+		Domain:   s.CookieDomain,
 	}
 
 	return user.Logout200Response{
