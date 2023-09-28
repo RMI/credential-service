@@ -77,6 +77,8 @@ func run(args []string) error {
 
 		enableCredTest = fs.Bool("enable_credential_test_api", false, "If true, enables the credential testing API, which returns if credentials are valid")
 
+		cookieDomain = fs.String("cookie_domain", "", "Domain to return in the cookie response")
+
 		allowedDomains     flagext.StringList
 		allowedCORSOrigins flagext.StringList
 		minLogLevel        zapcore.Level = zapcore.WarnLevel
@@ -161,8 +163,9 @@ func run(args []string) error {
 			Key: jwKey,
 			Now: time.Now,
 		},
-		Logger: logger,
-		Now:    func() time.Time { return time.Now().UTC() },
+		Logger:       logger,
+		Now:          func() time.Time { return time.Now().UTC() },
+		CookieDomain: *cookieDomain,
 	}
 	testCredsSrv := &testcredsrv.Server{
 		Now:     func() time.Time { return time.Now().UTC() },
