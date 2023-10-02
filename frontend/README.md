@@ -27,7 +27,7 @@ Then, create an `auth.json` file in the frontend directory and fill in your Azur
 
 when you try to run the frontend dev server.
 
-Make sure the server is using the same configuration (provided in `cmd/server/configs/secrets/local.enc.json`), it requires the same Azure AD B2C config parameters, in addition to the tenant ID. Check out [the `cmd/server` README](/cmd/server/README.md) for more details. 
+Make sure the server is using the same configuration (provided in `cmd/server/configs/local.conf`), it requires the same Azure AD B2C config parameters, in addition to the tenant ID. Check out [the `cmd/server` README](/cmd/server/README.md) for more details. 
 
 # Running the frontend
 

@@ -73,8 +73,6 @@ func run(args []string) error {
 
 		useLocalJWTs = fs.Bool("use_local_jwts", false, "If true, expect source JWTs to be self-signed, instead of from Azure B2C")
 
-		sopsPath = fs.String("sops_path", "", "Path to the sops-formatted file containing sensitive credentials to be decrypted at runtime.")
-
 		enableCredTest = fs.Bool("enable_credential_test_api", false, "If true, enables the credential testing API, which returns if credentials are valid")
 
 		cookieDomain = fs.String("cookie_domain", "", "Domain to return in the cookie response")
@@ -82,6 +80,15 @@ func run(args []string) error {
 		allowedDomains     flagext.StringList
 		allowedCORSOrigins flagext.StringList
 		minLogLevel        zapcore.Level = zapcore.WarnLevel
+
+		// Secrets
+		authKeyID   = fs.String("secret_auth_private_key_id", "", "Key ID (kid) of the JWT tokens to generate")
+		authKeyData = fs.String("secret_auth_private_key_data", "", "PEM-encoded Ed25519 private key to sign JWT tokens with, contains literal \\n characters that will need to be replaced before parsing")
+
+		azureADTenantName = fs.String("secret_azure_ad_tenant_name", "", "The name of the tenant user tokens should come from")
+		azureADUserFlow   = fs.String("secret_azure_ad_user_flow", "", "The user flow that users are using to sign in/sign up")
+		azureADClientID   = fs.String("secret_azure_ad_client_id", "", "The client ID the users are authenticating against")
+		azureADTenantID   = fs.String("secret_azure_ad_tenant_id", "", "The ID of the tenant user tokens should come from")
 	)
 	fs.Var(&allowedDomains, "allowed_domains", "A comma-separated list of domains that are allowed to get valid credentials")
 	fs.Var(&allowedCORSOrigins, "allowed_cors_origins", "A comma-separated list of CORS origins to allow traffic from")
@@ -98,10 +105,6 @@ func run(args []string) error {
 		{
 			name: "env",
 			val:  env,
-		},
-		{
-			name: "sops_path",
-			val:  sopsPath,
 		},
 	}
 	if err := checkFlags(reqFlags); err != nil {
@@ -126,8 +129,18 @@ func run(args []string) error {
 		}
 	}
 
-	logger.Info("Loading sops secrets", zap.String("sops_path", *sopsPath))
-	sec, err := secrets.Load(*sopsPath)
+	sec, err := secrets.Load(&secrets.RawConfig{
+		AuthSigningKey: &secrets.RawAuthSigningKey{
+			ID:   *authKeyID,
+			Data: *authKeyData,
+		},
+		AzureAD: &secrets.RawAzureAD{
+			TenantName: *azureADTenantName,
+			UserFlow:   *azureADUserFlow,
+			ClientID:   *azureADClientID,
+			TenantID:   *azureADTenantID,
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("failed to decrypt secrets: %w", err)
 	}
