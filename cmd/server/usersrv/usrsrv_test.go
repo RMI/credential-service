@@ -55,10 +55,11 @@ func TestLogin(t *testing.T) {
 }
 
 func TestCreateAPIKey(t *testing.T) {
-	srv, env := setup(t)
+	srv, _ := setup(t)
 
 	ctx := context.Background()
-	exp := env.curTime.Add(24 * time.Hour)
+	// API keys don't expire
+	exp := time.Date(9999, time.January, 1, 0, 0, 0, 0, time.UTC)
 	tkn := jwt.New()
 	tkn.Set("sub", "user123")
 	tkn.Set("emails", []any{"test@allowed.example.com"})
@@ -73,7 +74,7 @@ func TestCreateAPIKey(t *testing.T) {
 	want := user.CreateAPIKey200JSONResponse{
 		Id:        "6e4ff95f-f662-45ee-a82a-bdf44a2d0b75",
 		ExpiresAt: &exp,
-		Key:       "eyJhbGciOiJFZERTQSIsImtpZCI6InRlc3Qta2V5LWlkIiwidHlwIjoiSldUIn0.eyJhdWQiOlsicm1pLm9yZyJdLCJleHAiOjEyMzU0MzE4OCwiaWF0IjoxMjM0NTY3ODksImp0aSI6IjZlNGZmOTVmLWY2NjItNDVlZS1hODJhLWJkZjQ0YTJkMGI3NSIsIm5iZiI6MTIzNDU2NzI5LCJzdWIiOiJ1c2VyMTIzIn0.2Xq5HOV9QYvSgI534oCPYzBvRH74f2Uek7tS04aXQ7YTUR_TKeyJkRyVp2AT3KfPh-aW38Lw-HAu3cR5cMAiBg",
+		Key:       "eyJhbGciOiJFZERTQSIsImtpZCI6InRlc3Qta2V5LWlkIiwidHlwIjoiSldUIn0.eyJhdWQiOlsicm1pLm9yZyJdLCJleHAiOjI1MzM3MDc2NDgwMCwiaWF0IjoxMjM0NTY3ODksImp0aSI6IjZlNGZmOTVmLWY2NjItNDVlZS1hODJhLWJkZjQ0YTJkMGI3NSIsIm5iZiI6MTIzNDU2NzI5LCJzdWIiOiJ1c2VyMTIzIn0.sf7SbHOWGvW3mHadEsz64penWakt6KtlAs6z6EyYKcQRIiHeqMmoN6nycYnFjQ1RxD22IytFUDi_45Udi6UQCg",
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
