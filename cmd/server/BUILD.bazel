@@ -71,7 +71,7 @@ oci_push(
     name = "push_image",
     image = ":image",
     remote_tags = ["latest"],
-    repository = "rmicredsrv.azurecr.io/credsrv",
+    repository = "rmisa.azurecr.io/credsrv",
 )
 
 # Note: This tarball is provided for local testing of the Docker image, see the README.md for details on usage.
