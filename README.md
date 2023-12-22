@@ -31,6 +31,28 @@ bazel run //scripts:run_server
 
 You can access the API via `curl`, see [the cmd/server README](/cmd/server/README.md) for more details and exact commands.
 
+## Deploying
+
+This repo doesn't currently have deployment via GitHub Actions. To manually deploy the service:
+
+```bash
+az acr login --name rmisa
+bazel run  --@io_bazel_rules_go//go/config:pure //cmd/server:push_image
+
+# If you get an unauthenticated error from the above command, you can run:
+bazel build  --@io_bazel_rules_go//go/config:pure //cmd/server:image_tarball
+docker load < bazel-bin/cmd/server/image_tarball/tarball.tar
+docker tag <sha from previous step, without 'sha256:' prefix> rmisa.azurecr.io/credsrv
+docker push rmisa.azurecr.io/credsrv
+
+
+# Now that the updated image has been pushed, deploy it with something like:
+az containerapp update \
+  -g rmi-credsrv-dev \
+  -n credsrv-dev \
+  -i rmisa.azurecr.io/credsrv:latest
+```
+
 ## Security
 
 Please report security issues to security@siliconally.org, or by using one of
