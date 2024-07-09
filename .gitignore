@@ -5,4 +5,5 @@
 /test_server.pub
 
 /cmd/server/configs/allowlists/*.json
+!/cmd/server/configs/allowlists/*.enc.json
 !/cmd/server/configs/allowlists/example.json
