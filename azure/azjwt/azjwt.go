@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"github.com/RMI/credential-service/allowlist"
-	"github.com/RMI/credential-service/emailctx"
+	"github.com/RMI/credential-service/tokenctx"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -138,7 +138,7 @@ func (a *Auth) Authenticator(next http.Handler) http.Handler {
 		}
 
 		// Now, check against the allowlist
-		allowedEmails, err := a.checkEmailAllowed(token)
+		allowedEmails, entity, err := a.checkEmailAllowed(token)
 		if err != nil {
 			a.logger.Warn("token failed allowlist check", zap.Error(err))
 			if errors.Is(err, errNotAllowlisted) {
@@ -150,7 +150,8 @@ func (a *Auth) Authenticator(next http.Handler) http.Handler {
 		}
 
 		// Add the email to the context so that it can be used by the handler
-		ctx := emailctx.AddEmailsToContext(r.Context(), allowedEmails)
+		ctx := tokenctx.AddEmailsToContext(r.Context(), allowedEmails)
+		ctx = tokenctx.AddAllowlistEntityToContext(ctx, entity)
 		// Token is authenticated, pass it through
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
@@ -212,47 +213,61 @@ func (a *Auth) parseAndVerify(ctx context.Context, r *http.Request) (jwt.Token, 
 
 var errNotAllowlisted = errors.New("email isn't allowlisted")
 
-func (a *Auth) checkEmailAllowed(tkn jwt.Token) ([]string, error) {
+func (a *Auth) checkEmailAllowed(tkn jwt.Token) ([]string, *allowlist.Entity, error) {
 	// See https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference
 	emailsVal, ok := tkn.Get("emails")
 	if !ok {
-		return nil, errors.New("token didn't contain an 'emails' claim")
+		return nil, nil, errors.New("token didn't contain an 'emails' claim")
 	}
 	emailsI, ok := emailsVal.([]any)
 	if !ok {
-		return nil, fmt.Errorf("'emails' claim in token had unexpected type %T", emailsVal)
+		return nil, nil, fmt.Errorf("'emails' claim in token had unexpected type %T", emailsVal)
 	}
 
 	var emails []string
 	for i, ei := range emailsI {
 		email, ok := ei.(string)
 		if !ok {
-			return nil, fmt.Errorf("email %d from 'emails' claim in token had unexpected type %T", i, ei)
+			return nil, nil, fmt.Errorf("email %d from 'emails' claim in token had unexpected type %T", i, ei)
 		}
 		emails = append(emails, email)
 	}
 
 	// If one of their emails is allowed, consider them allowed.
-	allowed := a.allowedEmails(emails)
+	allowed, entity := a.allowedEmails(emails)
 	if len(allowed) == 0 {
-		return nil, errNotAllowlisted
+		return nil, nil, errNotAllowlisted
 	}
 
-	return allowed, nil
+	return allowed, entity, nil
 }
 
-func (a *Auth) allowedEmails(emails []string) []string {
-	var result []string
+func (a *Auth) allowedEmails(emails []string) ([]string, *allowlist.Entity) {
+	var (
+		outEmails     []string
+		allowAllSites bool
+		sites         []allowlist.Site
+	)
 	for _, email := range emails {
-		allowed, err := a.allowlist.Check(email)
+		entity, err := a.allowlist.Check(email)
 		if err != nil {
 			a.logger.Warn("failed to check allowlist", zap.String("email", email), zap.Error(err))
 			continue
 		}
-		// We don't return early on success, just to parse and validate all emails in the token.
-		if allowed {
-			result = append(result, email)
+		if entity == nil {
+			continue
 		}
+		if entity.AllowAllSites {
+			allowAllSites = true
+		}
+		sites = append(sites, entity.AllowedSites...)
+		outEmails = append(outEmails, email)
 	}
-	return result
+	var entity *allowlist.Entity
+	if allowAllSites {
+		entity = &allowlist.Entity{AllowAllSites: true}
+	} else {
+		entity = &allowlist.Entity{AllowedSites: sites}
+	}
+	return outEmails, entity
 }

@@ -5,13 +5,15 @@
 package usersrv
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/RMI/credential-service/emailctx"
+	"github.com/RMI/credential-service/allowlist"
+	"github.com/RMI/credential-service/tokenctx"
 	"github.com/RMI/credential-service/openapi/user"
 	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
@@ -26,7 +28,7 @@ type TokenIssuer struct {
 	Now func() time.Time
 }
 
-func (t *TokenIssuer) IssueToken(userID string, emails []string, exp time.Time) (string, string, error) {
+func (t *TokenIssuer) IssueToken(userID string, emails []string, ae *allowlist.Entity, exp time.Time) (string, string, error) {
 	now := t.Now()
 	id := uuid.NewString()
 	builder := jwt.NewBuilder().
@@ -39,6 +41,13 @@ func (t *TokenIssuer) IssueToken(userID string, emails []string, exp time.Time) 
 	if len(emails) > 0 {
 		builder = builder.Claim("emails", emails)
 	}
+	if ae != nil {
+		if ae.AllowAllSites {
+			builder = builder.Claim("sites", "all")
+		} else {
+			builder = builder.Claim("sites", formatSites(ae.AllowedSites))
+		}
+	}
 	tkn, err := builder.Build()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to build token: %w", err)
@@ -48,6 +57,17 @@ func (t *TokenIssuer) IssueToken(userID string, emails []string, exp time.Time) 
 		return "", "", fmt.Errorf("failed to sign JWT: %w", err)
 	}
 	return string(dat), id, nil
+}
+
+func formatSites(sites []allowlist.Site) string {
+	var buf bytes.Buffer
+	for i, s := range sites {
+		buf.WriteString(string(s))
+		if i < len(sites)-1 {
+			buf.WriteRune(',')
+		}
+	}
+	return buf.String()
 }
 
 type Server struct {
@@ -101,12 +121,19 @@ func (s *Server) exchangeToken(ctx context.Context, opts ...exchangeOption) (str
 		return "", "", time.Time{}, fmt.Errorf("failed to get auth service JWT to exchange for service-issued JWT: %w", err)
 	}
 
-	var emails []string
+	emails, err := tokenctx.EmailsFromContext(ctx)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("failed to get emails from context: %w", err)
+	}
+
+	var emailsClaim []string
 	if eOpts.includeEmails {
-		emails, err = emailctx.EmailsFromContext(ctx)
-		if err != nil {
-			return "", "", time.Time{}, fmt.Errorf("failed to get email from context: %w", err)
-		}
+		emailsClaim = emails
+	}
+
+	ae, err := tokenctx.AllowlistEntityFromContext(ctx)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("failed to get allowlist entity from context: %w", err)
 	}
 
 	var exp time.Time
@@ -134,7 +161,7 @@ func (s *Server) exchangeToken(ctx context.Context, opts ...exchangeOption) (str
 		return "", "", time.Time{}, fmt.Errorf("'sub' claim in source JWT was of type %T, expected a string", sub)
 	}
 
-	tkn, id, err := s.Issuer.IssueToken(subStr, emails, exp)
+	tkn, id, err := s.Issuer.IssueToken(subStr, emailsClaim, ae, exp)
 	if err != nil {
 		return "", "", time.Time{}, fmt.Errorf("failed to sign token: %w", err)
 	}

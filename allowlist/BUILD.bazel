@@ -11,4 +11,5 @@ go_test(
     name = "allowlist_test",
     srcs = ["allowlist_test.go"],
     embed = [":allowlist"],
+    deps = ["@com_github_google_go_cmp//cmp"],
 )

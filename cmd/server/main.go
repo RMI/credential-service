@@ -77,7 +77,7 @@ func run(args []string) error {
 
 		cookieDomain = fs.String("cookie_domain", "", "Domain to return in the cookie response")
 
-		allowedDomains     flagext.StringList
+		allowlistFile      = fs.String("allowlist_file", "", "JSON-formatted file containing the allowlist")
 		allowedCORSOrigins flagext.StringList
 		minLogLevel        zapcore.Level = zapcore.WarnLevel
 
@@ -90,7 +90,6 @@ func run(args []string) error {
 		azureADClientID   = fs.String("secret_azure_ad_client_id", "", "The client ID the users are authenticating against")
 		azureADTenantID   = fs.String("secret_azure_ad_tenant_id", "", "The ID of the tenant user tokens should come from")
 	)
-	fs.Var(&allowedDomains, "allowed_domains", "A comma-separated list of domains that are allowed to get valid credentials")
 	fs.Var(&allowedCORSOrigins, "allowed_cors_origins", "A comma-separated list of CORS origins to allow traffic from")
 	fs.Var(&minLogLevel, "min_log_level", "If set, retains logs at the given level and above. Options: 'debug', 'info', 'warn', 'error', 'dpanic', 'panic', 'fatal' - default warn.")
 
@@ -226,10 +225,14 @@ func run(args []string) error {
 			zap.String("user_flow", sec.AzureAD.UserFlow),
 			zap.String("client_id", sec.AzureAD.ClientID),
 		)
+		checker, err := allowlist.NewCheckerFromConfigFile(*allowlistFile)
+		if err != nil {
+			return fmt.Errorf("failed to init allowlist checker: %w", err)
+		}
 		// Accept Microsoft-issued JWTs
 		azJWTAuth, err := azjwt.NewAuth(ctx, &azjwt.Config{
 			Logger:    logger,
-			Allowlist: allowlist.NewChecker(allowedDomains),
+			Allowlist: checker,
 			Tenant:    sec.AzureAD.TenantName,
 			TenantID:  sec.AzureAD.TenantID,
 			Policy:    sec.AzureAD.UserFlow,
