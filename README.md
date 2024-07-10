@@ -14,11 +14,10 @@ The service currently has two main credential-exchanging endpoints:
 Things to note:
 
 - Only Azure AD B2C is supported as a source of exchangable user ID tokens at the moment, see [the server `main.go`](/cmd/server/main.go) and the [`azjwt` package](/azure/azjwt/azjwt.go) for more details.
-- The allowlists themselves (i.e. in `cmd/server/configs/allowlists/{local,dev}.json`, are **not** included in this repo. If you're deploying the actual RMI service, get these from one of the developers.
 
 ## Running the Credential Service
 
-Before running the service locally, you'll need an allowlist at `cmd/server/configs/allowlists/local.json`. You can create one based on the `example.json` in the same directory.
+Before running the service locally, make sure you have [`sops`](https://github.com/getsops/sops) installed, and are logged into Azure with credentials that can access the relevant keys. See the `.sops.yaml` for more info.
 
 Run the server against an Azure AD B2C instance:
 
