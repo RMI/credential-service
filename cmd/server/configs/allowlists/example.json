@@ -1,0 +1,9 @@
+{
+  "format": "v1",
+  "allowlist": [
+    {"domain": "siliconally.org"},
+    {"domain": "rmi.org"},
+    {"domain": "opgee-only.not-a-domain", "sites": ["OPGEE"]},
+    {"email": "only-this-email@pacta-only.not-a-domain", "sites": ["PACTA"]}
+  ]
+}
