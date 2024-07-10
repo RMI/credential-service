@@ -1,0 +1,13 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "siteverify",
+    srcs = ["siteverify.go"],
+    importpath = "github.com/RMI/credential-service/siteverify",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//allowlist",
+        "@com_github_go_chi_jwtauth_v5//:jwtauth",
+        "@org_uber_go_zap//:zap",
+    ],
+)
