@@ -23,26 +23,10 @@ OPTS=$(getopt \
   -- "$@"
 )
 
-if ! [ -x "$(command -v sops)" ]; then
-  echo 'Error: sops is not installed.' >&2
-  exit 1
-fi
-
-TMP_CONFIG_DIR="$(mktemp -d -t credsrv-local-XXXXXXXXX)"
-function cleanup {
-  rm -rf "$TMP_CONFIG_DIR"
-}
-trap cleanup EXIT
-TMP_ALLOWLIST_FILE="${TMP_CONFIG_DIR}/local.json"
-TMP_CONFIG_FILE="${TMP_CONFIG_DIR}/local.conf"
-sops -d "$ROOT/cmd/server/configs/allowlists/local.enc.json" > "$TMP_ALLOWLIST_FILE"
-cp "$ROOT/cmd/server/configs/local.conf" "$TMP_CONFIG_FILE"
-printf "\nallowlist_file %s\n" "$TMP_ALLOWLIST_FILE" >> "$TMP_CONFIG_FILE"
-
 eval set --$OPTS
 
 declare -a FLAGS=(
-  "--config=$TMP_CONFIG_FILE"
+  "--config=cmd/server/configs/local.conf"
 )
 while [ ! $# -eq 0 ]
 do
