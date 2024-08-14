@@ -17,8 +17,6 @@ Things to note:
 
 ## Running the Credential Service
 
-Before running the service locally, make sure you have [`sops`](https://github.com/getsops/sops) installed, and are logged into Azure with credentials that can access the relevant keys. See the `.sops.yaml` for more info.
-
 Run the server against an Azure AD B2C instance:
 
 ```bash
